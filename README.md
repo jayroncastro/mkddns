@@ -17,7 +17,7 @@ O objetivo desse repositório é centralizar os scripts com tal finalidade, send
 
 | Site | Script |
 | --- | --- |
-| DynDns | tal |
+| DynDns | [dyndns.rsc](https://github.com/jayroncastro/mkddns/blob/master/dyndns.rsc) |
 
 ## Definição
 As variáveis de controle estão listadas abaixo:
@@ -29,10 +29,10 @@ As variáveis de controle estão listadas abaixo:
 :global localInterface  "ether1";
 ```
 
-**ddnsuser:** variável que recebe o nome de usuário responsável pela conexão no site;
-**ddnspwd:** variavel que recebe a senha do usuário;
-**ddnshost:** variável que recebe o nome do host remoto para ser atualizado;
-**localInterface:** variável que recebe o nome da interface do Mikrotik em que o link está chegando.
+- **ddnsuser:** variável que recebe o nome de usuário responsável pela conexão no site;
+- **ddnspwd:** variavel que recebe a senha do usuário;
+- **ddnshost:** variável que recebe o nome do host remoto para ser atualizado;
+- **localInterface:** variável que recebe o nome da interface do Mikrotik em que o link está chegando.
 
 ## Compatibilidade
 Este script foi homologado para a versão 6.48.6 do RouterOS.
