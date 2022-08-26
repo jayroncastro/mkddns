@@ -53,7 +53,7 @@ As variáveis de controle deverão ser substituídas conforme cada cenário adot
 ## Segurança
 Por razão de segurança no equipamento Mikrotik, o script deverá ter explicitamente as permissões abaixo:
 
-- [ ] ftp
+- [x] ftp
 - [x] read
 - [ ] policy
 - [ ] password

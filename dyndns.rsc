@@ -10,16 +10,21 @@
   #ddnshost: recebe o host a ter o ip atualizado pelo script;
   #localInterface: recebe o nome da interface local por onde a comunicação com a internet irá ocorrer.
   #=======================================
-  :global ddnsuser        "usuario";
+  :global ddnsuser        "usuário";
   :global ddnspwd         "senha";
   :global ddnshost        "qualquer.dnsalias.org";
-  :global localInterface  "pppoe-bital-100Mb-Full";
+  :global localInterface  "pppoe-temporeal-100Mb-Full";
   #=======================================
   #=======================================
   #======== FUNÇÕES GLOBAIS =========
   #Retorna o IP armazenado no arquivo especificado
   :global getContentFile do={
-    :return ([/file get [find where name=$localFile] value-name=contents]);
+    :local contentFile;
+    :log debug "starting routine routine getContentFile";
+    :set contentFile [/file get [find where name=$localFile] value-name=contents];
+    :log debug "getContentFile->contentFile: $contentFile";
+    :log debug "ending routine getContentFile";
+    :return $contentFile;
   };
   #Retorna o nome do arquivo
   :global getFileName do={
@@ -29,19 +34,31 @@
   #Retorna o ip local da interface
   :global getLocalIP do={
     :global localInterface;
-    :local localIP [/ip address get [find interface=$localInterface] address];
-    :return ([:toip ([:pick $localIP 0 ([:tonum ([:len $localIP])] - 3)])]);
+    :local localIP;
+    :log debug "starting routine routine getLocalIP";
+    :log debug "getLocalIP->localInterface: $localInterface";
+    :set localIP [/ip address get [find interface=$localInterface] address];
+    :set localIP [:toip ([:pick $localIP 0 ([:tonum ([:len $localIP])] - 3)])];
+    :log debug "getLocalIP->localIP: $localIP";
+    :log debug "ending routine getLocalIP";
+    :return $localIP;
   };
   #Retorna o IP externo do link armazenado no arquivo de download
   :global getExternalIP do={
     :global getLocalIP;
     :global externalIPFile;
     :global getContentFile;
+    :local localIP;
+    :log debug "starting routine routine getExternalIP";
+    :set localIP [$getLocalIP];
+    :log debug "getExternalIP->localIP1: $localIP";
     #Vai no site da kstros e recebe um arquivo com o ip válido do link
-    /tool fetch src-address=[$getLocalIP] mode=http dst-path=$externalIPFile address=[:resolve www.kstros.com] port=80 host=www.kstros.com src-path=("/meuip.php");
+    /tool fetch src-address=$localIP mode=http dst-path=$externalIPFile address=[:resolve www.kstros.com] port=80 host=www.kstros.com src-path=("/meuip.php");
+    :log debug "getExternalIP->externalIPFile: $externalIPFile";
     :log debug "Local file created to store public ip: $externalIPFile";
     #Interrompe execução para gravar o arquivo em disco
     /delay 1;
+    :log debug "ending routine getExternalIP";
     :return ([:toip [$getContentFile localFile=$externalIPFile]]);
   };
   #Retorna o IP temporário do link armazenado no arquivo de download
@@ -49,18 +66,23 @@
     :global createTemporaryFileIfNotExists;
     :global temporaryFile;
     :global getContentFile;
+    :log debug "starting routine routine getTemporaryIP";
     #Cria o arquivo temporario, caso o mesmo nao exista
     [$createTemporaryFileIfNotExists];
+    :log debug "ending routine getTemporaryIP";
     :return ([:toip [$getContentFile localFile=$temporaryFile]]);
   };
   #Retorna verdadeiro se o arquivo existe
   :global fileExists do={
     :local result;
+    :log debug "starting routine routine fileExists";
     :if ([:len [/file find where name=$fileName]] < 1) do={
       :set result false;
     } else={
       :set result true;
     };
+    :log debug "fileExists->result: $result";
+    :log debug "ending routine fileExists";
     :return $result;
   };
   #Retorna verdadeiro se o processo de atualização foi concluído com sucesso
@@ -105,15 +127,18 @@
   :global createTemporaryFileIfNotExists do={
     :global temporaryFile;
     :global fileExists;
+    :log debug "starting routine routine createTemporaryFileIfNotExists";
     #Verifica se existe o arquivo temporario de retorno do dyndns
     :if (![$fileExists fileName=$temporaryFile]) do={
-      :log error "criando";
+      :log debug "creating local file to store temporary ip";
       /file print file=$temporaryFile where name=$temporaryFile;
       /delay 1;
+      :log debug "Local file created to store temporary ip: $temporaryFile";
       /file set $temporaryFile contents="0.0.0.0";
       /delay 1;
-      :log debug "Local file created to store temporary ip: $temporaryFile";
+      :log debug "local file content to store changed temporary ip.";
     };
+    :log debug "ending routine createTemporaryFileIfNotExists";
   };
   #Atualiza o host remoto com o novo ip
   :global updateRemoteHostIP do={
