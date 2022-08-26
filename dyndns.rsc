@@ -10,9 +10,9 @@
   #ddnshost: recebe o host a ter o ip atualizado pelo script;
   #localInterface: recebe o nome da interface local por onde a comunicação com a internet irá ocorrer.
   #=======================================
-  :global ddnsuser        "kstros";
-  :global ddnspwd         "noryaj1977jacc";
-  :global ddnshost        "pfeitosabackup1.dnsalias.org";
+  :global ddnsuser        "usuario";
+  :global ddnspwd         "senha";
+  :global ddnshost        "qualquer.dnsalias.org";
   :global localInterface  "pppoe-bital-100Mb-Full";
   #=======================================
   #=======================================
@@ -91,7 +91,6 @@
   };
   #=======================================
   #== CONSTANTES E VARIÁVEIS DE KERNEL ==
-  # "timeDelay" tem seu valor expresso em segundos
   #=======================================
   :global externalIPFile;
   :global temporaryFile;
