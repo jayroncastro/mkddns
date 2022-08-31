@@ -32,7 +32,7 @@ As variáveis de controle estão listadas abaixo:
 - **ddnsuser:** variável que recebe o nome de usuário responsável pela conexão no site;
 - **ddnspwd:** variavel que recebe a senha do usuário;
 - **ddnshost:** variável que recebe o nome do host remoto para ser atualizado;
-- **localInterface:** variável que recebe o nome da interface do Mikrotik em que o link está chegando.
+- **localInterface:** variável que recebe o nome da interface do Mikrotik em que o link está chegando, caso não seja especificada o script usuará a interface de saída padrão.
 
 ## Compatibilidade
 Este script foi homologado para a versão 6.48.6 do RouterOS.

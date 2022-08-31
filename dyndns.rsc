@@ -8,13 +8,18 @@
   #ddnsuser: recebe o nome de usuario para autenticar no dyndns;
   #ddnspwd: recebe a senha do usuário para autenticar no dyndns;
   #ddnshost: recebe o host a ter o ip atualizado pelo script;
-  #localInterface: recebe o nome da interface local por onde a comunicação com a internet irá ocorrer.
+  #localInterface: recebe o nome da interface local por onde a comunicação com a internet irá ocorrer, caso não seja especificada o script usuará a interface de saída padrão.
   #=======================================
-  :global ddnsuser        "usuário";
+  :global ddnsuser        "usuario";
   :global ddnspwd         "senha";
-  :global ddnshost        "qualquer.dnsalias.org";
-  :global localInterface  "pppoe-temporeal-100Mb-Full";
+  :global ddnshost        "qualquer-ddns";
+  :global localInterface  "";
   #=======================================
+  #== CONSTANTES E VARIÁVEIS DE KERNEL ==
+  #=======================================
+  :global externalIPFile;
+  :global temporaryFile;
+  :global updateStatusFile;
   #=======================================
   #======== FUNÇÕES GLOBAIS =========
   #Retorna o IP armazenado no arquivo especificado
@@ -49,11 +54,18 @@
     :global externalIPFile;
     :global getContentFile;
     :local localIP;
+    :global isStandardInterface;
     :log debug "starting routine routine getExternalIP";
-    :set localIP [$getLocalIP];
-    :log debug "getExternalIP->localIP1: $localIP";
-    #Vai no site da kstros e recebe um arquivo com o ip válido do link
-    /tool fetch src-address=$localIP mode=http dst-path=$externalIPFile address=[:resolve www.kstros.com] port=80 host=www.kstros.com src-path=("/meuip.php");
+    #testa para saber se o script vai tratar uma interface específica ou a padrão
+    :if ([$isStandardInterface]) do={
+      #Vai no site da kstros e recebe um arquivo com o ip válido do link
+      /tool fetch mode=http dst-path=$externalIPFile address=[:resolve www.kstros.com] port=80 host=www.kstros.com src-path=("/meuip.php");
+    } else={
+      :set localIP [$getLocalIP];
+      :log debug "getExternalIP->localIP1: $localIP";
+      #Vai no site da kstros e recebe um arquivo com o ip válido do link
+      /tool fetch src-address=$localIP mode=http dst-path=$externalIPFile address=[:resolve www.kstros.com] port=80 host=www.kstros.com src-path=("/meuip.php");
+    };
     :log debug "getExternalIP->externalIPFile: $externalIPFile";
     :log debug "Local file created to store public ip: $externalIPFile";
     #Interrompe execução para gravar o arquivo em disco
@@ -111,18 +123,29 @@
     };
     :return $result;
   };
+  :global isStandardInterface do={
+    :local result;
+    :global localInterface;
+    :if ([:len $localInterface] = 0) do={
+      :set result true;
+    } else={
+      :set result false;
+    };
+    return $result;
+  };
   #=======================================
-  #== CONSTANTES E VARIÁVEIS DE KERNEL ==
-  #=======================================
-  :global externalIPFile;
-  :global temporaryFile;
-  :global updateStatusFile;
-  #=======================================
-  :set $externalIPFile ("ext_" . [$getFileName]);
-  :set $temporaryFile ("tmp_" . [$getFileName]);
-  :set $updateStatusFile ("_" . [$getFileName]);
   #=======================================
   #======== ROTINAS GLOBAIS =========
+  #Carrega o nome dos arquivos locais
+  :global createLocalFileName do={
+    :global externalIPFile;
+    :global temporaryFile;
+    :global updateStatusFile;
+    :global getFileName;
+    :set $externalIPFile ("ext_" . [$getFileName]);
+    :set $temporaryFile ("tmp_" . [$getFileName]);
+    :set $updateStatusFile ("_" . [$getFileName]);
+  };
   #Cria o arquivo temporário caso o mesmo não exista
   :global createTemporaryFileIfNotExists do={
     :global temporaryFile;
@@ -147,10 +170,15 @@
     :global updateStatusFile;
     :global ddnsuser;
     :global ddnspwd;
+    :global isStandardInterface;
     :log debug "Remote host to be updated: $ddnshost";
       :local connectionString "/nic/update\?hostname=$ddnshost&myip=$externalIP&wildcard=NOCHG&mx=NOCHG&backmx=NOCHG";
       #Atualiza o dyndns
-      /tool fetch src-address=[$getLocalIP] mode=http port=80 dst-path=$updateStatusFile address=[:resolve members.dyndns.org] host=members.dyndns.org src-path=$connectionString  user=$ddnsuser password=$ddnspwd;
+      :if ([$isStandardInterface]) do={
+        /tool fetch mode=http port=80 dst-path=$updateStatusFile address=[:resolve members.dyndns.org] host=members.dyndns.org src-path=$connectionString  user=$ddnsuser password=$ddnspwd;
+      } else={
+        /tool fetch src-address=[$getLocalIP] mode=http port=80 dst-path=$updateStatusFile address=[:resolve members.dyndns.org] host=members.dyndns.org src-path=$connectionString  user=$ddnsuser password=$ddnspwd;
+      };
       :log debug "local file created to store the result of the update process: $updateStatusFile";
       #força parada para aguardar criação do arquivo
       /delay 1;
@@ -165,29 +193,30 @@
 
   #========== REGRA DE NEGÓCIO ==========
   #======================================
-  #Executa o scrip somente se a interface estiver habilitada
-  :if (!([/interface get $localInterface disabled])) do={
-    :log debug "Interface $localInterface enabled normally and the script started the update process :)";
-    #Armazena na variável o ip externo do link
-    :local externalIP;
-    :local temporaryIP;
-    :set externalIP [$getExternalIP];
-    :set temporaryIP [$getTemporaryIP];
-    :log debug "External IP: $externalIP";
-    :log debug "Temporary IP: $temporaryIP";
-    :if ($externalIP != $temporaryIP) do={
-      :log info "Starting external host ip update process, old ip $temporaryIP will change to $externalIP";
-      [$updateRemoteHostIP externalIP=$externalIP];
-      :if ([$isProcessConcluded]) do={
-        [$writeContentToFile externalIP=$externalIP]
-        :log info "Remote host $ddnshost update process was successful. :)";
-      } else={
-        :log error "Some error occurred in the remote host update process, check network layer and dyndns access data";
-      };
+  #Cria nomes dos arquivos locais
+  [$createLocalFileName];
+  #Armazena na variável o ip externo do link
+  :local externalIP;
+  :local temporaryIP;
+  #Retorna o ip externo
+  :set externalIP [$getExternalIP];
+  #Retorna o ip temporário
+  :set temporaryIP [$getTemporaryIP];
+  :log debug "External IP: $externalIP";
+  :log debug "Temporary IP: $temporaryIP";
+  :if ($externalIP != $temporaryIP) do={
+    :log info "Starting external host ip update process, old ip $temporaryIP will change to $externalIP";
+    #Atualiza o host ddns especificado
+    [$updateRemoteHostIP externalIP=$externalIP];
+    #Entra na instrução somente se o processo de atualização ocorrer sem erros
+    :if ([$isProcessConcluded]) do={
+      #Escreve o novo ip no arquivo local
+      [$writeContentToFile externalIP=$externalIP];
+      :log warning "Remote host $ddnshost update process was successful. :)";
     } else={
-      :log warning "No need to update external IP!!! :)";
+      :log error "Some error occurred in the remote host update process, check network layer and dyndns access data";
     };
   } else={
-    :log warning "interface $localInterface disabled, so ddns update script will not run!!! :(";
+    :log info "No need to update external IP $externalIP to ddns $ddnshost!!! :)";
   };
 }
